@@ -16,7 +16,7 @@ import {
   ActivityType,
   invitations,
 } from '@/lib/db/schema';
-import { comparePasswords, hashPassword, setSession } from '@/lib/auth/session';
+import { setSession } from '@/lib/auth/session';
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { createCheckoutSession } from '@/lib/payments/stripe';
@@ -26,11 +26,35 @@ import {
   validatedActionWithUser,
 } from '@/lib/auth/middleware';
 import { createClient } from '@supabase/supabase-js';
+import { compare, hash } from 'bcryptjs';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!, 
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
+
+const SALT_ROUNDS = 10;
+
+async function generatePassword() {
+  const length = 12;
+  const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+  let password = "";
+  for (let i = 0; i < length; i++) {
+    password += charset.charAt(Math.floor(Math.random() * charset.length));
+  }
+  return password;
+}
+
+async function comparePasswords(
+  plainTextPassword: string,
+  hashedPassword: string
+) {
+  return compare(plainTextPassword, hashedPassword);
+}
+
+async function hashPassword(password: string) {
+  return hash(password, SALT_ROUNDS);
+}
 
 async function logActivity(
   teamId: number | null | undefined,
@@ -379,18 +403,23 @@ export const inviteTeamMember = validatedActionWithUser(
   inviteTeamMemberSchema,
   async (data, _, user) => {
     const { email, role } = data;
-    const userWithTeam = await getUserWithTeam(user.id);
 
+    // Fetch user's team
+    const userWithTeam = await getUserWithTeam(user.id);
     if (!userWithTeam?.teamId) {
       return { error: 'User is not part of a team' };
     }
 
+    const teamId = userWithTeam.teamId;
+    const userId = user.id;
+
+    // Check if the user is already part of the team
     const existingMember = await db
       .select()
       .from(users)
       .leftJoin(teamMembers, eq(users.id, teamMembers.userId))
       .where(
-        and(eq(users.email, email), eq(teamMembers.teamId, userWithTeam.teamId))
+        and(eq(users.email, email), eq(teamMembers.teamId, teamId))
       )
       .limit(1);
 
@@ -398,62 +427,81 @@ export const inviteTeamMember = validatedActionWithUser(
       return { error: 'User is already a member of this team' };
     }
 
-    // Check if there's an existing invitation
-    const existingInvitation = await db
-      .select()
-      .from(invitations)
-      .where(
-        and(
-          eq(invitations.email, email),
-          eq(invitations.teamId, userWithTeam.teamId),
-          eq(invitations.status, 'pending')
-        )
-      )
-      .limit(1);
+    // Generate a temporary password
+    const generatedPassword = await generatePassword();
+    const passwordHash = await hashPassword(generatedPassword);
 
-    if (existingInvitation.length > 0) {
-      return { error: 'An invitation has already been sent to this email' };
-    }
-
-    // Create a new invitation
-    const [invitation] = await db.insert(invitations)
-      .values({
-        teamId: userWithTeam.teamId,
-        email,
-        role,
-        invitedBy: user.id,
-        status: 'pending',
-      })
-      .returning();
-
-    await logActivity(
-      userWithTeam.teamId,
-      user.id,
-      ActivityType.INVITE_TEAM_MEMBER
-    );
-
-    // Send invitation email using Supabase
     try {
-      const { data, error } = await supabase.auth.admin.inviteUserByEmail(email, {
-        data: {
-          inviteId: invitation.id, // Custom metadata for tracking
-          inviterName: user.name || user.email, // Optional: name of inviter
-          role: role, // Role of the invited user
-        },
-        redirectTo: `${process.env.BASE_URL}/sign-up?inviteId=${invitation.id}`, // Redirect URL after invite acceptance
+      // Create user, team member, and invitation in a transaction
+      const [createdUser, invitation] = await db.transaction(async (tx) => {
+        // Create the user in the database
+        const [newUser] = await tx
+          .insert(users)
+          .values({
+            email,
+            passwordHash,
+            role,
+          })
+          .returning();
+
+        if (!newUser) {
+          throw new Error('Failed to create user in the database.');
+        }
+
+        // Add the new user to the team
+        await tx
+          .insert(teamMembers)
+          .values({
+            userId: newUser.id,
+            teamId,
+            role,
+          });
+
+        // Create the invitation
+        const [newInvitation] = await tx
+          .insert(invitations)
+          .values({
+            teamId,
+            email,
+            role,
+            invitedBy: userId,
+            status: 'approved',
+          })
+          .returning();
+
+        return [newUser, newInvitation];
       });
-    
-      if (error) {
-        console.error('Failed to send invitation email:', error);
+
+      await logActivity(teamId, userId, ActivityType.INVITE_TEAM_MEMBER);
+
+      // Send invitation email using Supabase
+      const { data: inviteData, error: supabaseError } = await supabase.auth.admin.inviteUserByEmail(email, {
+        data: {
+          inviteId: invitation.id,
+          inviterName: user.name || user.email,
+          role,
+          password: generatedPassword, // Include the generated password in the metadata
+        },
+        redirectTo: `${process.env.BASE_URL}/sign-up?inviteId=${invitation.id}`,
+      });
+
+      if (supabaseError) {
+        console.error('Failed to send invitation email via Supabase:', supabaseError);
         return { error: 'Failed to send invitation email' };
       }
-    
-      console.log('Invitation sent successfully:', data);
-      return { success: 'Invitation sent successfully' };
+
+      console.log('Invitation sent successfully:', inviteData);
+
+      return {
+        success: 'Invitation sent successfully',
+        email,
+        password: generatedPassword, // Return the password for debugging purposes (optional, remove for production)
+      };
     } catch (error) {
-      console.error('Error sending invitation:', error);
-      return { error: 'Failed to send invitation' };
+      console.error('Error in invitation process:', error);
+      return { error: 'Failed to complete the invitation process' };
     }
-    
   }
 );
+
+
