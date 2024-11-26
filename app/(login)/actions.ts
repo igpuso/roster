@@ -434,24 +434,26 @@ export const inviteTeamMember = validatedActionWithUser(
 
     // Send invitation email using Supabase
     try {
-      const { error } = await supabase.auth.admin.inviteUserByEmail(email, {
+      const { data, error } = await supabase.auth.admin.inviteUserByEmail(email, {
         data: {
-          inviteId: invitation.id,
-          inviterName: user.name || user.email,
-          role: role,
-          redirectTo: `${process.env.BASE_URL}/sign-up?inviteId=${invitation.id}`
-        }
+          inviteId: invitation.id, // Custom metadata for tracking
+          inviterName: user.name || user.email, // Optional: name of inviter
+          role: role, // Role of the invited user
+        },
+        redirectTo: `${process.env.BASE_URL}/sign-up?inviteId=${invitation.id}`, // Redirect URL after invite acceptance
       });
-
+    
       if (error) {
         console.error('Failed to send invitation email:', error);
         return { error: 'Failed to send invitation email' };
       }
+    
+      console.log('Invitation sent successfully:', data);
+      return { success: 'Invitation sent successfully' };
     } catch (error) {
       console.error('Error sending invitation:', error);
       return { error: 'Failed to send invitation' };
     }
-
-    return { success: 'Invitation sent successfully' };
+    
   }
 );
