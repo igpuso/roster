@@ -25,6 +25,12 @@ import {
   validatedAction,
   validatedActionWithUser,
 } from '@/lib/auth/middleware';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!, 
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 async function logActivity(
   teamId: number | null | undefined,
@@ -100,6 +106,16 @@ const signUpSchema = z.object({
 
 export const signUp = validatedAction(signUpSchema, async (data, formData) => {
   const { email, password, inviteId } = data;
+
+  // Create Supabase user first
+  const { data: authData, error: authError } = await supabase.auth.signUp({
+    email,
+    password,
+  });
+
+  if (authError) {
+    return { error: 'Failed to create user. Please try again.' };
+  }
 
   const existingUser = await db
     .select()
@@ -400,13 +416,15 @@ export const inviteTeamMember = validatedActionWithUser(
     }
 
     // Create a new invitation
-    await db.insert(invitations).values({
-      teamId: userWithTeam.teamId,
-      email,
-      role,
-      invitedBy: user.id,
-      status: 'pending',
-    });
+    const [invitation] = await db.insert(invitations)
+      .values({
+        teamId: userWithTeam.teamId,
+        email,
+        role,
+        invitedBy: user.id,
+        status: 'pending',
+      })
+      .returning();
 
     await logActivity(
       userWithTeam.teamId,
@@ -414,8 +432,25 @@ export const inviteTeamMember = validatedActionWithUser(
       ActivityType.INVITE_TEAM_MEMBER
     );
 
-    // TODO: Send invitation email and include ?inviteId={id} to sign-up URL
-    // await sendInvitationEmail(email, userWithTeam.team.name, role)
+    // Send invitation email using Supabase
+    try {
+      const { error } = await supabase.auth.admin.inviteUserByEmail(email, {
+        data: {
+          inviteId: invitation.id,
+          inviterName: user.name || user.email,
+          role: role,
+          redirectTo: `${process.env.BASE_URL}/sign-up?inviteId=${invitation.id}`
+        }
+      });
+
+      if (error) {
+        console.error('Failed to send invitation email:', error);
+        return { error: 'Failed to send invitation email' };
+      }
+    } catch (error) {
+      console.error('Error sending invitation:', error);
+      return { error: 'Failed to send invitation' };
+    }
 
     return { success: 'Invitation sent successfully' };
   }
