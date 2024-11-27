@@ -9,6 +9,7 @@ import {
   integer,
   boolean,
   date,
+  unique
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
@@ -112,15 +113,15 @@ export const shifts = pgTable('shifts', {
 
 // User Availability Table
 export const userAvailability = pgTable('user_availability', {
-  id: serial('id').primaryKey(),
-  userId: integer('user_id')
-    .notNull()
-    .references(() => users.id),
-  date: date('date').notNull(),
-  isAvailableAM: boolean('is_available_am').notNull().default(true),
-  isAvailablePM: boolean('is_available_pm').notNull().default(true),
-  isAvailableNight: boolean('is_available_night').notNull().default(true),
-});
+  userId: text('user_id').notNull(),
+  date: text('date').notNull(),
+  isAvailableAM: boolean('is_available_am').default(false),
+  isAvailablePM: boolean('is_available_pm').default(false),
+  isAvailableNight: boolean('is_available_night').default(false)
+}, (table) => ({
+  // Add a unique constraint on the combination of userId and date
+  uniqCombination: unique().on(table.userId, table.date)
+}))
 
 // Relations
 

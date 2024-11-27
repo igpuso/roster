@@ -19,7 +19,7 @@ export async function createUserAvailabilityAction(data: {
     const [availability] = await db
       .insert(userAvailability)
       .values({
-        userId: user.id,
+        userId: user.id.toString(), // Convert number to string
         date: data.date,
         isAvailableAM: data.isAvailableAM,
         isAvailablePM: data.isAvailablePM,
