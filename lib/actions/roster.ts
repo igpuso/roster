@@ -185,17 +185,17 @@ export const createUserAvailabilitySchema = z.object({
 });
 
 export async function createUserAvailabilityAction(data: z.infer<typeof createUserAvailabilitySchema>) {
-  const user = await getUser();
-  if (!user) {
-    throw new NotAuthenticatedError();
-  }
-
-  // Users can update their own availability or owners can update any user's availability
-  if (user.id !== data.userId && user.role !== 'owner') {
-    throw new PermissionDeniedError('You do not have permission to set availability for this user');
-  }
-
   try {
+    const user = await getUser();
+    if (!user) {
+      throw new NotAuthenticatedError();
+    }
+
+    // Users can update their own availability or owners can update any user's availability
+    if (user.id !== data.userId && user.role !== 'owner') {
+      throw new PermissionDeniedError('You do not have permission to set availability for this user');
+    }
+
     const validatedData = createUserAvailabilitySchema.parse(data);
 
     const availabilityData = {
@@ -205,6 +205,9 @@ export async function createUserAvailabilityAction(data: z.infer<typeof createUs
       isAvailablePM: validatedData.isAvailablePM,
       isAvailableNight: validatedData.isAvailableNight,
     };
+
+    // Add console.log to debug the data being inserted
+    console.log('Inserting availability data:', availabilityData);
 
     const [availability] = await db
       .insert(userAvailability)
@@ -219,9 +222,16 @@ export async function createUserAvailabilityAction(data: z.infer<typeof createUs
       })
       .returning();
 
+    // Add console.log to confirm successful insertion
+    console.log('Inserted availability:', availability);
+
     return { success: true, data: availability };
   } catch (error) {
+    // Improve error logging
     console.error('Create user availability error:', error);
+    console.error('Error details:', {
+    });
+    
     return {
       error: error instanceof Error ? error.message : 'Failed to create user availability',
     };
