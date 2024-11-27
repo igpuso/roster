@@ -1,6 +1,16 @@
-import { desc, and, eq, isNull } from 'drizzle-orm';
+import { desc, and, eq, isNull, gte, lte } from 'drizzle-orm';
 import { db } from './drizzle';
-import { activityLogs, teamMembers, teams, users } from './schema';
+import { 
+  activityLogs, 
+  teamMembers, 
+  teams, 
+  users,
+  rosters,
+  shifts,
+  userAvailability, 
+  NewShift,
+  NewRoster 
+} from './schema';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth/session';
 
@@ -126,4 +136,47 @@ export async function getTeamForUser(userId: number) {
   });
 
   return result?.teamMembers[0]?.team || null;
+}
+
+// Add new roster management queries
+export async function createRoster(data: NewRoster) {
+  return await db.insert(rosters).values(data).returning();
+}
+
+export async function getRostersByTeam(teamId: number) {
+  return await db.query.rosters.findMany({
+    where: eq(rosters.teamId, teamId),
+    with: {
+      shifts: {
+        with: {
+          user: true,
+        },
+      },
+    },
+  });
+}
+
+export async function createShift(data: NewShift) {
+  return await db.insert(shifts).values(data).returning();
+}
+
+export async function updateShift(id: number, data: Partial<NewShift>) {
+  return await db
+    .update(shifts)
+    .set(data)
+    .where(eq(shifts.id, id))
+    .returning();
+}
+
+export async function getUserAvailability(userId: number, startDate: Date, endDate: Date) {
+  return await db
+    .select()
+    .from(userAvailability)
+    .where(
+      and(
+        eq(userAvailability.userId, userId),
+        gte(userAvailability.date, startDate.toISOString().split('T')[0]),
+        lte(userAvailability.date, endDate.toISOString().split('T')[0])
+      )
+    );
 }
