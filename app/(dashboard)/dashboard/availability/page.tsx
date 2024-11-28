@@ -1,15 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Calendar } from '@/components/ui/calendar'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { useUser } from '@/lib/auth'
-import { createUserAvailabilityAction } from '@/lib/actions/availability'
+import { createUserAvailabilityAction, getUserAvailabilityAction } from '@/lib/actions/availability'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
 import { DateRange } from 'react-day-picker'
-import { addDays, eachDayOfInterval, isSameDay } from 'date-fns'
+import { addDays, eachDayOfInterval, isSameDay, format } from 'date-fns'
 
 type Availability = {
   morning: boolean
@@ -33,6 +33,25 @@ export default function AvailabilityPage() {
     night: false,
   })
 
+  useEffect(() => {
+    const loadExistingAvailability = async () => {
+      const result = await getUserAvailabilityAction()
+      if (result.success && result.data) {
+        // Map the data to ensure non-nullable booleans
+        const mappedAvailabilities = result.data.map(entry => ({
+          date: entry.date,
+          availability: {
+            morning: !!entry.availability.morning, // Convert to boolean
+            afternoon: !!entry.availability.afternoon, // Convert to boolean
+            night: !!entry.availability.night // Convert to boolean
+          }
+        }))
+        setSelectedDates(mappedAvailabilities)
+      }
+    }
+    loadExistingAvailability()
+  }, [])
+
   const handleRangeSelect = (range: DateRange | undefined) => {
     setDateRange(range)
     if (range?.from) {
@@ -41,6 +60,10 @@ export default function AvailabilityPage() {
       )
       if (existingEntry) {
         setCurrentAvailability(existingEntry.availability)
+        toast({
+          title: "Existing Availability Found",
+          description: "You can modify the availability for this date.",
+        })
       } else {
         setCurrentAvailability({ morning: false, afternoon: false, night: false })
       }
@@ -63,16 +86,18 @@ export default function AvailabilityPage() {
     }))
 
     setSelectedDates((prev) => {
+      // Remove any existing entries for the selected dates
       const filtered = prev.filter(
-        (entry) => entry.date && dateRange.from && !newEntries.some((newEntry) => isSameDay(newEntry.date, entry.date))
+        (entry) => entry.date && !newEntries.some((newEntry) => isSameDay(newEntry.date, entry.date))
       )
-      return [...filtered, ...newEntries]
+      // Add the new/updated entries
+      return [...filtered, ...newEntries].sort((a, b) => a.date.getTime() - b.date.getTime())
     })
 
     setDateRange(undefined)
     toast({
-      title: "Availability Added",
-      description: `Availability set for ${newEntries.length} day(s)`,
+      title: "Availability Updated",
+      description: `Availability ${newEntries.length > 1 ? 'set' : 'updated'} for ${newEntries.length} day(s)`,
     })
   }
 
@@ -102,11 +127,11 @@ export default function AvailabilityPage() {
   }
 
   return (
-    <div className="container grid items-center gap-6 pb-8 pt-6 md:py-10">
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
+    <div className="container mx-auto px-4 py-8 max-w-6xl">
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card className="shadow-lg">
           <CardHeader>
-            <CardTitle>Select Date Range</CardTitle>
+            <CardTitle className="text-xl font-semibold">Select Date Range</CardTitle>
           </CardHeader>
           <CardContent>
             <Calendar
@@ -114,34 +139,48 @@ export default function AvailabilityPage() {
               selected={dateRange}
               onSelect={handleRangeSelect}
               numberOfMonths={2}
-              className="rounded-md border"
+              className="rounded-md"
+              showOutsideDays={false}
+              classNames={{
+                months: "flex flex-col md:flex-row space-y-4 md:space-x-4 md:space-y-0",
+                head_cell: "text-muted-foreground font-normal text-sm",
+                cell: "h-9 w-9 text-center text-sm p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-range-start)]:rounded-l-md first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md",
+                day: "h-9 w-9 p-0 font-normal aria-selected:opacity-100",
+                day_range_start: "day-range-start",
+                day_range_end: "day-range-end",
+                day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
+              }}
             />
           </CardContent>
         </Card>
-        <Card>
+        <Card className="shadow-lg">
           <CardHeader>
-            <CardTitle>Set Availability</CardTitle>
+            <CardTitle className="text-xl font-semibold">Set Availability</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
+            <div className="space-y-6">
               {[
                 { id: 'morning', label: 'Morning (6AM - 2PM)' },
                 { id: 'afternoon', label: 'Afternoon (2PM - 10PM)' },
                 { id: 'night', label: 'Night (10PM - 6AM)' }
               ].map(({ id, label }) => (
-                <div key={id} className="flex items-center space-x-2">
+                <div key={id} className="flex items-center space-x-3">
                   <Checkbox
                     id={id}
                     checked={currentAvailability[id as keyof Availability]}
                     onCheckedChange={() => handleAvailabilityChange(id as keyof Availability)}
+                    className="h-5 w-5"
                   />
-                  <label htmlFor={id}>{label}</label>
+                  <label htmlFor={id} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    {label}
+                  </label>
                 </div>
               ))}
               <Button 
                 onClick={handleAddAvailability} 
-                className="mt-4"
+                className="w-full mt-6"
                 disabled={!dateRange?.from || !dateRange?.to}
+                variant="default"
               >
                 Add Availability for Selected Range
               </Button>
@@ -149,25 +188,50 @@ export default function AvailabilityPage() {
           </CardContent>
         </Card>
       </div>
-      <Card>
+      <Card className="mt-6 shadow-lg">
         <CardHeader>
-          <CardTitle>Selected Dates and Availability</CardTitle>
+          <CardTitle className="text-xl font-semibold">Selected Dates and Availability</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-2 max-h-96 overflow-y-auto">
-            {selectedDates.map((entry) => (
-              <div key={entry.date.toISOString()} className="flex items-center justify-between border-b pb-2">
-                <span>{entry.date.toDateString()}</span>
-                <div className="flex space-x-2">
-                  {entry.availability.morning && <span className="text-sm bg-green-100 text-green-800 px-2 py-1 rounded">Morning</span>}
-                  {entry.availability.afternoon && <span className="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded">Afternoon</span>}
-                  {entry.availability.night && <span className="text-sm bg-purple-100 text-purple-800 px-2 py-1 rounded">Night</span>}
+            {selectedDates.length === 0 ? (
+              <p className="text-muted-foreground text-center py-4">No dates selected</p>
+            ) : (
+              selectedDates.map((entry) => (
+                <div key={entry.date.toISOString()} 
+                     className="flex items-center justify-between py-3 border-b last:border-0">
+                  <span className="font-medium">
+                    {format(entry.date, 'MMMM d, yyyy')}
+                  </span>
+                  <div className="flex gap-2">
+                    {entry.availability.morning && 
+                      <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        Morning
+                      </span>
+                    }
+                    {entry.availability.afternoon && 
+                      <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        Afternoon
+                      </span>
+                    }
+                    {entry.availability.night && 
+                      <span className="px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                        Night
+                      </span>
+                    }
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
           {selectedDates.length > 0 && (
-            <Button onClick={handleSaveAvailability} className="mt-4">Save All Availability</Button>
+            <Button 
+              onClick={handleSaveAvailability} 
+              className="w-full mt-6"
+              variant="default"
+            >
+              Save All Availability
+            </Button>
           )}
         </CardContent>
       </Card>

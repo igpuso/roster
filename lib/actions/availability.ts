@@ -3,6 +3,7 @@
 import { db } from '@/lib/db/drizzle'
 import { userAvailability } from '@/lib/db/schema'
 import { getUser } from '../db/queries'
+import { asc, desc, eq, and } from 'drizzle-orm'
 
 export async function createUserAvailabilityAction(data: {
   date: string
@@ -19,7 +20,7 @@ export async function createUserAvailabilityAction(data: {
     const [availability] = await db
       .insert(userAvailability)
       .values({
-        userId: user.id.toString(), // Convert number to string
+        userId: user.id.toString(),
         date: data.date,
         isAvailableAM: data.isAvailableAM,
         isAvailablePM: data.isAvailablePM,
@@ -41,3 +42,72 @@ export async function createUserAvailabilityAction(data: {
     return { success: false, error: 'Failed to update availability' }
   }
 }
+
+export async function getUserAvailabilityAction() {
+  try {
+    const user = await getUser()
+    if (!user) {
+      return { success: false, error: 'Not authenticated' }
+    }
+
+    const availabilities = await db
+      .select()
+      .from(userAvailability)
+      .where(eq(userAvailability.userId, user.id.toString()))
+      .orderBy(asc(userAvailability.date))
+
+    return {
+      success: true,
+      data: availabilities.map(row => ({
+        date: new Date(row.date),
+        availability: {
+          morning: row.isAvailableAM,
+          afternoon: row.isAvailablePM,
+          night: row.isAvailableNight
+        }
+      }))
+    }
+  } catch (error) {
+    console.error('Get availability error:', error)
+    return { success: false, error: 'Failed to fetch availability' }
+  }
+}
+
+export async function updateUserAvailabilityAction(data: {
+  date: string
+  isAvailableAM: boolean
+  isAvailablePM: boolean
+  isAvailableNight: boolean
+}) {
+  try {
+    const user = await getUser()
+    if (!user) {
+      return { success: false, error: 'Not authenticated' }
+    }
+
+    const [updated] = await db
+      .update(userAvailability)
+      .set({
+        isAvailableAM: data.isAvailableAM,
+        isAvailablePM: data.isAvailablePM,
+        isAvailableNight: data.isAvailableNight,
+      })
+      .where(
+        and(
+          eq(userAvailability.userId, user.id.toString()),
+          eq(userAvailability.date, data.date)
+        )
+      )
+      .returning()
+
+    if (!updated) {
+      return { success: false, error: 'Availability not found' }
+    }
+
+    return { success: true, data: updated }
+  } catch (error) {
+    console.error('Update availability error:', error)
+    return { success: false, error: 'Failed to update availability' }
+  }
+}
+
