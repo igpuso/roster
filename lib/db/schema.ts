@@ -31,6 +31,8 @@ export const users = pgTable('users', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 100 }), // Nullable by default
   email: varchar('email', { length: 255 }).notNull().unique(),
+  phone: varchar('phone', { length: 100 }), // Nullable by default
+  birthDate: date('birth_date'),
   passwordHash: text('password_hash').notNull(),
   role: varchar('role', { length: 20 }).notNull().default('member'),
   hourlyRate: integer('hourly_rate').notNull().default(0),

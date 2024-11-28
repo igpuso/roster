@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
 import { useUser } from '@/lib/auth';
 import { updateAccount } from '@/app/(login)/actions';
+import React, { useState, useEffect } from 'react';
 
 type ActionState = {
   error?: string;
@@ -21,19 +22,62 @@ export default function GeneralPage() {
     { error: '', success: '' }
   );
 
+  const [birthDate, setBirthDate] = useState('');
+
+  useEffect(() => {
+    if (user?.birthDate) {
+      const date = new Date(user.birthDate);
+      const formattedDate = `${date.getDate().toString().padStart(2, '0')}/${(
+        date.getMonth() + 1
+      )
+        .toString()
+        .padStart(2, '0')}/${date.getFullYear()}`;
+      setBirthDate(formattedDate);
+      console.log('Preloaded Birth Date:', formattedDate); // Log preloaded value
+    }
+  }, [user?.birthDate]);
+
+  const handleBirthDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    let value = event.target.value;
+
+    // Allow only numbers and "/"
+    value = value.replace(/[^0-9/]/g, '');
+
+    // Automatically add "/" at correct positions
+    if (value.length === 2 || value.length === 5) {
+      if (!value.endsWith('/')) {
+        value += '/';
+      }
+    }
+
+    // Restrict to DD/MM/YYYY format
+    if (value.length > 10) {
+      value = value.slice(0, 10);
+    }
+
+    setBirthDate(value);
+    console.log('Updated Birth Date Input:', value); // Log each input change
+  };
+
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    // If you call the Server Action directly, it will automatically
-    // reset the form. We don't want that here, because we want to keep the
-    // client-side values in the inputs. So instead, we use an event handler
-    // which calls the action. You must wrap direct calls with startTranstion.
-    // When you use the `action` prop it automatically handles that for you.
-    // Another option here is to persist the values to local storage. I might
-    // explore alternative options.
+    const formData = new FormData(event.currentTarget);
+  
+    console.log('Form Data Before Birth Date Check:', Object.fromEntries(formData)); // Log form data before changes
+  
+    if (birthDate && /^\d{2}\/\d{2}\/\d{4}$/.test(birthDate)) {
+      formData.set('birthDate', birthDate); // Keep DD/MM/YYYY format
+      console.log('Final Birth Date (DD/MM/YYYY):', birthDate); // Log final value
+    } else {
+      console.error('Invalid Birth Date Format:', birthDate); // Log invalid format
+      return; // Prevent submission
+    }
+  
+    console.log('Final Form Data Submitted:', Object.fromEntries(formData)); // Log final form data
     startTransition(() => {
-      formAction(new FormData(event.currentTarget));
+      formAction(formData);
     });
-  };
+  };  
 
   return (
     <section className="flex-1 p-4 lg:p-8">
@@ -66,6 +110,26 @@ export default function GeneralPage() {
                 placeholder="Enter your email"
                 defaultValue={user?.email || ''}
                 required
+              />
+            </div>
+            <div>
+              <Label htmlFor="phone">Phone</Label>
+              <Input
+                id="phone"
+                name="phone"
+                placeholder="Enter your phone number"
+                defaultValue={user?.phone || ''}
+              />
+            </div>
+            <div>
+              <Label htmlFor="birthDate">Birth Date</Label>
+              <Input
+                id="birthDate"
+                name="birthDate"
+                placeholder="DD/MM/YYYY"
+                value={birthDate}
+                onChange={handleBirthDateChange}
+                maxLength={10}
               />
             </div>
             {state.error && (

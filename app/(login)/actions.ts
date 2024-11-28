@@ -344,19 +344,35 @@ export const deleteAccount = validatedActionWithUser(
 const updateAccountSchema = z.object({
   name: z.string().min(1, 'Name is required').max(100),
   email: z.string().email('Invalid email address'),
+  phone: z.string().optional(),
+  birthDate: z.string()
+    .regex(/^\d{2}\/\d{2}\/\d{4}$/, 'Invalid date format. Use DD/MM/YYYY')
+    .transform((value) => {
+      const [day, month, year] = value.split('/');
+      return `${year}-${month}-${day}`;
+    })
+    .optional(),
 });
 
 export const updateAccount = validatedActionWithUser(
   updateAccountSchema,
   async (data, _, user) => {
-    const { name, email } = data;
+    const { name, email, phone, birthDate } = data;
     const userWithTeam = await getUserWithTeam(user.id);
+    console.log('Received Data:', { name, email, phone, birthDate }); // Log raw data
+
 
     await Promise.all([
-      db.update(users).set({ name, email }).where(eq(users.id, user.id)),
+      db.update(users).set({ 
+        name, 
+        email, 
+        phone, 
+        birthDate: birthDate ? birthDate : null,
+      }).where(eq(users.id, user.id)),
       logActivity(userWithTeam?.teamId, user.id, ActivityType.UPDATE_ACCOUNT),
     ]);
 
+    console.log('Database Updated Successfully');
     return { success: 'Account updated successfully.' };
   }
 );
