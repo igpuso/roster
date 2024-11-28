@@ -138,17 +138,20 @@ export default function AvailabilityPage() {
               mode="range"
               selected={dateRange}
               onSelect={handleRangeSelect}
-              numberOfMonths={2}
+              numberOfMonths={1}
               className="rounded-md"
               showOutsideDays={false}
               classNames={{
-                months: "flex flex-col md:flex-row space-y-4 md:space-x-4 md:space-y-0",
-                head_cell: "text-muted-foreground font-normal text-sm",
+                months: "space-y-4",
+                head_cell: "text-muted-foreground font-normal text-sm px-2", // Added padding
                 cell: "h-9 w-9 text-center text-sm p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-range-start)]:rounded-l-md first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md",
-                day: "h-9 w-9 p-0 font-normal aria-selected:opacity-100",
+                day: "h-9 w-9 p-0 font-normal aria-selected:opacity-100 mx-auto flex items-center justify-center", // Added mx-auto
                 day_range_start: "day-range-start",
                 day_range_end: "day-range-end",
                 day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
+                table: "w-full border-collapse space-y-1", // Added space-y-1
+                head_row: "flex space-x-5", // Added space-x-2
+                row: "flex w-full mt-2 space-x-4", // Added space-x-2 and mt-2
               }}
             />
           </CardContent>
