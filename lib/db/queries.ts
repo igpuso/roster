@@ -124,6 +124,11 @@ export async function getTeamForUser(userId: number) {
                       id: true,
                       name: true,
                       email: true,
+                      position: true,
+                      hourlyRate: true,
+                      maxWeeklyHours: true,
+                      minWeeklyHours: true,
+                      seniority: true
                     },
                   },
                 },

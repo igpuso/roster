@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Users, Settings, Shield, Activity, Menu, Clock } from 'lucide-react';
+import { useUser } from '@/lib/auth'; // Assuming you have a `useUser` hook for user context
 
 export default function DashboardLayout({
   children,
@@ -13,6 +14,7 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const { user } = useUser(); // Fetch user context
 
   const navItems = [
     { href: '/dashboard', icon: Users, label: 'Team' },
@@ -63,6 +65,21 @@ export default function DashboardLayout({
                 </Button>
               </Link>
             ))}
+
+            {/* Conditional link for 'Team Details' */}
+            {user?.role === 'owner' && (
+              <Link href="/dashboard/team-details" passHref>
+                <Button
+                  variant={pathname === '/dashboard/team-details' ? 'secondary' : 'ghost'}
+                  className={`my-1 w-full justify-start ${
+                    pathname === '/dashboard/team-details' ? 'bg-gray-100' : ''
+                  }`}
+                  onClick={() => setIsSidebarOpen(false)}
+                >
+                  Team Details
+                </Button>
+              </Link>
+            )}
           </nav>
         </aside>
 

@@ -521,3 +521,48 @@ export const inviteTeamMember = validatedActionWithUser(
 );
 
 
+// /app/(login)/actions.ts
+const updateTeamMemberDetailsSchema = z.object({
+  userId: z.string(),
+  position: z.string().min(1, 'Position is required'),
+  hourlyRate: z.string().transform(Number),
+  maxWeeklyHours: z.string().transform(Number),
+  minWeeklyHours: z.string().transform(Number),
+  seniority: z.string().transform(Number),
+});
+
+export const updateTeamMemberDetails = validatedActionWithUser(
+  updateTeamMemberDetailsSchema,
+  async (data, _, user) => {
+    if (user.role !== 'owner') {
+      return { error: 'Only owners can modify these details' };
+    }
+
+    const userWithTeam = await getUserWithTeam(user.id);
+    
+    if (!userWithTeam?.teamId) {
+      return { error: 'No team found' };
+    }
+
+    const { userId, position, hourlyRate, maxWeeklyHours, minWeeklyHours, seniority } = data;
+
+    try {
+      await db.update(users)
+        .set({ 
+          position,
+          hourlyRate,
+          maxWeeklyHours,
+          minWeeklyHours,
+          seniority,
+        })
+        .where(eq(users.id, parseInt(userId)));
+
+      await logActivity(userWithTeam.teamId, user.id, ActivityType.UPDATE_TEAM_MEMBER);
+
+      return { success: 'Team member details updated successfully.' };
+    } catch (error) {
+      console.error('Error updating team member details:', error);
+      return { error: 'Failed to update team member details' };
+    }
+  }
+);

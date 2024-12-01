@@ -21,6 +21,7 @@ const iconMap: Record<ActivityType, LucideIcon> = {
   [ActivityType.UPDATE_PASSWORD]: Lock,
   [ActivityType.DELETE_ACCOUNT]: UserMinus,
   [ActivityType.UPDATE_ACCOUNT]: Settings,
+  [ActivityType.UPDATE_TEAM_MEMBER]: Settings,
   [ActivityType.CREATE_TEAM]: UserPlus,
   [ActivityType.REMOVE_TEAM_MEMBER]: UserMinus,
   [ActivityType.INVITE_TEAM_MEMBER]: Mail,
@@ -55,6 +56,8 @@ function formatAction(action: ActivityType): string {
       return 'You deleted your account';
     case ActivityType.UPDATE_ACCOUNT:
       return 'You updated your account';
+      case ActivityType.UPDATE_TEAM_MEMBER:
+        return 'You updated a team member';
     case ActivityType.CREATE_TEAM:
       return 'You created a new team';
     case ActivityType.REMOVE_TEAM_MEMBER:
