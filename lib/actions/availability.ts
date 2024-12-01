@@ -20,7 +20,7 @@ export async function createUserAvailabilityAction(data: {
     const [availability] = await db
       .insert(userAvailability)
       .values({
-        userId: user.id.toString(),
+        userId: user.id,
         date: data.date,
         isAvailableAM: data.isAvailableAM,
         isAvailablePM: data.isAvailablePM,
@@ -53,7 +53,7 @@ export async function getUserAvailabilityAction() {
     const availabilities = await db
       .select()
       .from(userAvailability)
-      .where(eq(userAvailability.userId, user.id.toString()))
+      .where(eq(userAvailability.userId, user.id))
       .orderBy(asc(userAvailability.date))
 
     return {
@@ -94,7 +94,7 @@ export async function updateUserAvailabilityAction(data: {
       })
       .where(
         and(
-          eq(userAvailability.userId, user.id.toString()),
+          eq(userAvailability.userId, user.id),
           eq(userAvailability.date, data.date)
         )
       )

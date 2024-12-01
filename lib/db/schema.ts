@@ -39,6 +39,7 @@ export const users = pgTable('users', {
   maxWeeklyHours: integer('max_weekly_hours').notNull().default(40),
   minWeeklyHours: integer('min_weekly_hours').notNull().default(0),
   seniority: integer('seniority').notNull().default(0),
+  position: varchar('position', { length: 50 }).notNull().default(''),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
   deletedAt: timestamp('deleted_at'), // Nullable by default
