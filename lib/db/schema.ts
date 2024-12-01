@@ -9,7 +9,8 @@ import {
   integer,
   boolean,
   date,
-  unique
+  unique,
+  numeric
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
@@ -35,7 +36,7 @@ export const users = pgTable('users', {
   birthDate: date('birth_date'),
   passwordHash: text('password_hash').notNull(),
   role: varchar('role', { length: 20 }).notNull().default('member'),
-  hourlyRate: integer('hourly_rate').notNull().default(0),
+  hourlyRate: numeric('hourly_rate').notNull().$type<number>().default(0),
   maxWeeklyHours: integer('max_weekly_hours').notNull().default(40),
   minWeeklyHours: integer('min_weekly_hours').notNull().default(0),
   seniority: integer('seniority').notNull().default(0),

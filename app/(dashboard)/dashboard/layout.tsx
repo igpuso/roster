@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Users, Settings, Shield, Activity, Menu, Clock } from 'lucide-react';
+import { Users, Settings, Shield, Activity, Menu, Clock, UserPen } from 'lucide-react';
 import { useUser } from '@/lib/auth'; // Assuming you have a `useUser` hook for user context
 
 export default function DashboardLayout({
@@ -76,6 +76,7 @@ export default function DashboardLayout({
                   }`}
                   onClick={() => setIsSidebarOpen(false)}
                 >
+                  <UserPen className="mr-2 h-4 w-4" /> {/* Added Clock icon */}
                   Team Details
                 </Button>
               </Link>

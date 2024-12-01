@@ -114,13 +114,14 @@ export function TeamDetailsForm({ teamData }: TeamDetailsFormProps) {
               <div className="space-y-2">
                 <Label htmlFor="hourlyRate">Hourly Rate</Label>
                 <Input 
-                  id="hourlyRate" 
-                  name="hourlyRate" 
-                  type="number" 
-                  min="0"
-                  defaultValue={selectedMember.hourlyRate || ''}
+                    id="hourlyRate" 
+                    name="hourlyRate" 
+                    type="number" 
+                    step="0.01"
+                    min="0"
+                    defaultValue={selectedMember.hourlyRate || ''}
                 />
-              </div>
+                </div>
 
               <div className="space-y-2">
                 <Label htmlFor="maxWeeklyHours">Maximum Weekly Hours</Label>
