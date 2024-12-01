@@ -115,7 +115,7 @@ export const shifts = pgTable('shifts', {
 
 // User Availability Table
 export const userAvailability = pgTable('user_availability', {
-  userId: text('user_id').notNull(),
+  userId: integer('user_id').notNull(),
   date: text('date').notNull(),
   isAvailableAM: boolean('is_available_am').default(false),
   isAvailablePM: boolean('is_available_pm').default(false),
