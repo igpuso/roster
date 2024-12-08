@@ -4,8 +4,8 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Users, Settings, Shield, Activity, Menu, Clock, UserPen } from 'lucide-react';
-import { useUser } from '@/lib/auth'; // Assuming you have a `useUser` hook for user context
+import { Users, Settings, Shield, Activity, Menu, Clock, UserPen, CalendarPlus } from 'lucide-react';
+import { useUser } from '@/lib/auth';
 
 export default function DashboardLayout({
   children,
@@ -68,18 +68,34 @@ export default function DashboardLayout({
 
             {/* Conditional link for 'Team Details' */}
             {user?.role === 'owner' && (
-              <Link href="/dashboard/team-details" passHref>
-                <Button
-                  variant={pathname === '/dashboard/team-details' ? 'secondary' : 'ghost'}
-                  className={`my-1 w-full justify-start ${
-                    pathname === '/dashboard/team-details' ? 'bg-gray-100' : ''
-                  }`}
-                  onClick={() => setIsSidebarOpen(false)}
-                >
-                  <UserPen className="mr-2 h-4 w-4" /> {/* Added Clock icon */}
-                  Team Details
-                </Button>
-              </Link>
+              <>
+                <Link href="/dashboard/team-details" passHref>
+                  <Button
+                    variant={pathname === '/dashboard/team-details' ? 'secondary' : 'ghost'}
+                    className={`my-1 w-full justify-start ${
+                      pathname === '/dashboard/team-details' ? 'bg-gray-100' : ''
+                    }`}
+                    onClick={() => setIsSidebarOpen(false)}
+                  >
+                    <UserPen className="mr-2 h-4 w-4" />
+                    Team Details
+                  </Button>
+                </Link>
+
+                {/* Conditional link for 'Create Roster' */}
+                <Link href="/dashboard/create-roster" passHref>
+                  <Button
+                    variant={pathname === '/dashboard/create-roster' ? 'secondary' : 'ghost'}
+                    className={`my-1 w-full justify-start ${
+                      pathname === '/dashboard/create-roster' ? 'bg-gray-100' : ''
+                    }`}
+                    onClick={() => setIsSidebarOpen(false)}
+                  >
+                    <CalendarPlus className="mr-2 h-4 w-4" />
+                    Create Roster
+                  </Button>
+                </Link>
+              </>
             )}
           </nav>
         </aside>

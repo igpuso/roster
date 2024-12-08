@@ -185,3 +185,33 @@ export async function getUserAvailability(userId: number, startDate: Date, endDa
       )
     );
 }
+
+export async function getUsersWithAvailability() {
+  const result = await db
+    .select({
+      userId: users.id,
+      role: users.role,
+      hourlyRate: users.hourlyRate,
+      maxWeeklyHours: users.maxWeeklyHours,
+      minWeeklyHours: users.minWeeklyHours,
+      seniority: users.seniority,
+      position: users.position,
+      date: userAvailability.date,
+      isAvailableAM: userAvailability.isAvailableAM,
+      isAvailablePM: userAvailability.isAvailablePM,
+      isAvailableNight: userAvailability.isAvailableNight,
+    })
+    .from(users)
+    .leftJoin(
+      userAvailability,
+      eq(users.id, userAvailability.userId)
+    )
+    .where(
+      and(
+        isNull(users.deletedAt),
+        eq(users.role, 'member')
+      )
+    );
+
+  return result;
+}
