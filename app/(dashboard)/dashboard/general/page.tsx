@@ -63,21 +63,22 @@ export default function GeneralPage() {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
   
-    console.log('Form Data Before Birth Date Check:', Object.fromEntries(formData)); // Log form data before changes
-  
-    if (birthDate && /^\d{2}\/\d{2}\/\d{4}$/.test(birthDate)) {
+    // If birthDate is empty, remove it from formData
+    if (!birthDate) {
+      formData.delete('birthDate');
+    } else if (/^\d{2}\/\d{2}\/\d{4}$/.test(birthDate)) {
       formData.set('birthDate', birthDate); // Keep DD/MM/YYYY format
-      console.log('Final Birth Date (DD/MM/YYYY):', birthDate); // Log final value
+      console.log('Final Birth Date (DD/MM/YYYY):', birthDate);
     } else {
-      console.error('Invalid Birth Date Format:', birthDate); // Log invalid format
-      return; // Prevent submission
+      console.error('Invalid Birth Date Format:', birthDate);
+      return; // Prevent submission for invalid formats
     }
   
-    console.log('Final Form Data Submitted:', Object.fromEntries(formData)); // Log final form data
+    console.log('Final Form Data Submitted:', Object.fromEntries(formData));
     startTransition(() => {
       formAction(formData);
     });
-  };  
+  };
 
   return (
     <section className="flex-1 p-4 lg:p-8">

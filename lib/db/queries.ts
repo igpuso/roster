@@ -1,4 +1,4 @@
-import { desc, and, eq, isNull, gte, lte } from 'drizzle-orm';
+import { desc, and, or, eq, isNull, gte, lte } from 'drizzle-orm';
 import { db } from './drizzle';
 import { 
   activityLogs, 
@@ -209,7 +209,12 @@ export async function getUsersWithAvailability() {
     .where(
       and(
         isNull(users.deletedAt),
-        eq(users.role, 'member')
+        eq(users.role, 'member'),
+        // Add condition to get dates from today onwards
+        or(
+          isNull(userAvailability.date),
+          gte(userAvailability.date, new Date().toISOString().split('T')[0])
+        )
       )
     );
 
