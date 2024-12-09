@@ -5,18 +5,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
+import { DateRange } from "react-day-picker";
 
 export default function CreateRosterClient() {
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [startDate, setStartDate] = useState<Date>();
-  const [endDate, setEndDate] = useState<Date>();
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [rosters, setRosters] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [selectedRosterId, setSelectedRosterId] = useState<number | null>(null);
   const [availabilityData, setAvailabilityData] = useState<any>(null);
 
-  // Fetch existing rosters on mount
   useEffect(() => {
     fetchRosters();
   }, []);
@@ -34,7 +33,7 @@ export default function CreateRosterClient() {
   };
 
   const handleCreateRoster = async () => {
-    if (!startDate || !endDate) {
+    if (!dateRange?.from || !dateRange?.to) {
       setError('Please select both start and end dates');
       return;
     }
@@ -47,17 +46,16 @@ export default function CreateRosterClient() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          startDate: startDate.toISOString(),
-          endDate: endDate.toISOString(),
+          startDate: dateRange.from.toISOString(),
+          endDate: dateRange.to.toISOString(),
         }),
       });
 
       if (!response.ok) throw new Error('Failed to create roster');
       
-      await fetchRosters(); // Refresh the roster list
+      await fetchRosters();
       setShowForm(false);
-      setStartDate(undefined);
-      setEndDate(undefined);
+      setDateRange(undefined);
     } catch (error) {
       console.error('Error creating roster:', error);
       setError('Failed to create roster');
@@ -110,30 +108,20 @@ export default function CreateRosterClient() {
 
             {showForm && (
               <div className="mt-4 space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div>
-                    <label className="block mb-2">Start Date</label>
-                    <Calendar
-                      mode="single"
-                      selected={startDate}
-                      onSelect={setStartDate}
-                      className="rounded-md border"
-                    />
-                  </div>
-                  <div>
-                    <label className="block mb-2">End Date</label>
-                    <Calendar
-                      mode="single"
-                      selected={endDate}
-                      onSelect={setEndDate}
-                      className="rounded-md border"
-                    />
-                  </div>
+                <div>
+                  <label className="block mb-2">Select Date Range</label>
+                  <Calendar
+                    mode="range"
+                    selected={dateRange}
+                    onSelect={setDateRange}
+                    numberOfMonths={2}
+                    className="rounded-md border"
+                  />
                 </div>
                 <div className="flex gap-2">
                   <Button 
                     onClick={handleCreateRoster}
-                    disabled={loading || !startDate || !endDate}
+                    disabled={loading || !dateRange?.from || !dateRange?.to}
                   >
                     {loading ? 'Creating...' : 'Create Roster'}
                   </Button>
@@ -141,8 +129,7 @@ export default function CreateRosterClient() {
                     variant="outline"
                     onClick={() => {
                       setShowForm(false);
-                      setStartDate(undefined);
-                      setEndDate(undefined);
+                      setDateRange(undefined);
                     }}
                   >
                     Cancel
@@ -191,3 +178,4 @@ export default function CreateRosterClient() {
     </section>
   );
 }
+
