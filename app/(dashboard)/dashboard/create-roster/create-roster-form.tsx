@@ -64,12 +64,14 @@ export default function CreateRosterClient() {
     }
   };
 
-  const handleViewDetails = async (rosterId: number) => {
+  const handleViewDetails = async (roster: any) => {
     setLoading(true);
-    setSelectedRosterId(rosterId);
+    setSelectedRosterId(roster.id);
     
     try {
-      const response = await fetch('/api/roster/availability');
+      const response = await fetch(
+        `/api/roster/availability?startDate=${roster.startDate}&endDate=${roster.endDate}`
+      );
       if (!response.ok) throw new Error('Failed to fetch availability');
       
       const data = await response.json();
@@ -151,7 +153,7 @@ export default function CreateRosterClient() {
                         </div>
                         <Button
                           variant="secondary"
-                          onClick={() => handleViewDetails(roster.id)}
+                          onClick={() => handleViewDetails(roster)}
                           disabled={loading}
                         >
                           {loading && selectedRosterId === roster.id 

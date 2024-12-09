@@ -186,7 +186,7 @@ export async function getUserAvailability(userId: number, startDate: Date, endDa
     );
 }
 
-export async function getUsersWithAvailability() {
+export async function getUsersWithAvailability(startDate: Date, endDate: Date) {
   const result = await db
     .select({
       userId: users.id,
@@ -210,11 +210,9 @@ export async function getUsersWithAvailability() {
       and(
         isNull(users.deletedAt),
         eq(users.role, 'member'),
-        // Add condition to get dates from today onwards
-        or(
-          isNull(userAvailability.date),
-          gte(userAvailability.date, new Date().toISOString().split('T')[0])
-        )
+        // Filter by date range
+        gte(userAvailability.date, startDate.toISOString().split('T')[0]),
+        lte(userAvailability.date, endDate.toISOString().split('T')[0])
       )
     );
 

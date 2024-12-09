@@ -9,7 +9,7 @@ import { createUserAvailabilityAction, getUserAvailabilityAction } from '@/lib/a
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
 import { DateRange } from 'react-day-picker'
-import { addDays, eachDayOfInterval, isSameDay, format } from 'date-fns'
+import { addDays, eachDayOfInterval, isSameDay, format, startOfDay } from 'date-fns'
 
 type Availability = {
   morning: boolean
@@ -103,11 +103,11 @@ export default function AvailabilityPage() {
 
   const handleSaveAvailability = async () => {
     if (!user) return
-
+  
     try {
       for (const entry of selectedDates) {
         await createUserAvailabilityAction({
-          date: entry.date.toISOString().split('T')[0],
+          date: format(startOfDay(entry.date), 'yyyy-MM-dd'),
           isAvailableAM: entry.availability.morning,
           isAvailablePM: entry.availability.afternoon,
           isAvailableNight: entry.availability.night,
