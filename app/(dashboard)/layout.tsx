@@ -14,6 +14,11 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useUser } from '@/lib/auth';
 import { signOut } from '@/app/(login)/actions';
 import { useRouter } from 'next/navigation';
+import { User } from '@/lib/db/schema';
+
+function getUserDisplayName(user: Pick<User, 'id' | 'name' | 'email'>) {
+  return user.name || user.email || 'Unknown User';
+}
 
 function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -44,9 +49,12 @@ function Header() {
             <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen}>
               <DropdownMenuTrigger asChild>
                 <Avatar className="cursor-pointer size-9">
-                  <AvatarImage alt={user.name || ''} />
+                  <AvatarImage 
+                    src={`/placeholder.svg?height=32&width=32`} 
+                    alt={getUserDisplayName(user)} 
+                  />
                   <AvatarFallback>
-                    {user.email
+                    {getUserDisplayName(user)
                       .split(' ')
                       .map((n) => n[0])
                       .join('')}

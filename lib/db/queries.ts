@@ -220,3 +220,40 @@ export async function getUsersWithAvailability() {
 
   return result;
 }
+
+export async function createNewRoster(data: {
+  startDate: Date;
+  endDate: Date;
+  createdBy: number;
+}) {
+  const user = await getUser();
+  if (!user) {
+    throw new Error('User not authenticated');
+  }
+
+  const teamData = await getTeamForUser(user.id);
+  if (!teamData) {
+    throw new Error('Team not found');
+  }
+
+  // Convert Date objects to string in YYYY-MM-DD format
+  const formattedStartDate = data.startDate.toISOString().split('T')[0];
+  const formattedEndDate = data.endDate.toISOString().split('T')[0];
+
+  return await db.insert(rosters).values({
+    ...data,
+    startDate: formattedStartDate,
+    endDate: formattedEndDate,
+    teamId: teamData.id,
+    createdAt: new Date(),
+  }).returning();
+}
+
+// Also add a function to get all rosters
+export async function getAllRosters(teamId: number) {
+  return await db
+    .select()
+    .from(rosters)
+    .where(eq(rosters.teamId, teamId))
+    .orderBy(desc(rosters.createdAt));
+}
