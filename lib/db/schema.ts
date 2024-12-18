@@ -10,7 +10,8 @@ import {
   boolean,
   date,
   unique,
-  numeric
+  numeric,
+  time
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
@@ -101,7 +102,6 @@ export const rosters = pgTable('rosters', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
-// Shifts Table
 export const shifts = pgTable('shifts', {
   id: serial('id').primaryKey(),
   rosterId: integer('roster_id')
@@ -112,6 +112,8 @@ export const shifts = pgTable('shifts', {
     .references(() => users.id),
   shiftType: varchar('shift_type', { length: 20 }).notNull(),
   date: date('date').notNull(),
+  startTime: time('start_time').notNull(),
+  finishTime: time('finish_time').notNull(),
   hours: integer('hours').notNull(),
 });
 
