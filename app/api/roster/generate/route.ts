@@ -23,31 +23,49 @@ const promptFilePath = path.resolve(process.cwd(), "prompts/roster-generation.md
 const basePrompt = fs.readFileSync(promptFilePath, "utf-8");
 
 export async function POST(request: Request) {
-  try {
-    const { roster, availability } = await request.json();
-    
-    const chatSession = model.startChat({
-      generationConfig,
-      history: [],
-    });
+    try {
+        console.log('Generate roster endpoint hit');
+        
+        const body = await request.json();
+        console.log('Received data:', body);
 
-    // Combine the base prompt with the dynamic data
-    const prompt = `
-${basePrompt}
+        if (!body.roster || !body.availability) {
+            console.error('Missing required data');
+            return NextResponse.json(
+                { error: 'Missing required roster or availability data' }, 
+                { status: 400 }
+            );
+        }
 
-Current Roster Details:
-${JSON.stringify(roster, null, 2)}
+        const chatSession = model.startChat({
+            generationConfig,
+            history: [],
+        });
 
-Available Staff Data:
-${JSON.stringify(availability, null, 2)}
-`;
+        // Combine the base prompt with the dynamic data
+        const prompt = `
+        ${basePrompt}
+        
+        Current Roster Details:
+        ${JSON.stringify(body.roster, null, 2)}
+        
+        Available Staff Data:
+        ${JSON.stringify(body.availability, null, 2)}
+        `;
+        
+        console.log('Sending prompt to Gemini');
+        const result = await chatSession.sendMessage(prompt);
+        const response = await result.response.text();
+        
+        console.log('Received response from Gemini');
+        return NextResponse.json(JSON.parse(response));
+    } catch (error: unknown) {
+        console.error("Detailed generate roster error:", error);
 
-    const result = await chatSession.sendMessage(prompt);
-    const response = await result.response.text();
-    
-    return NextResponse.json(JSON.parse(response));
-  } catch (error) {
-    console.error("Error generating roster:", error);
-    return NextResponse.json({ error: "Failed to generate roster" }, { status: 500 });
-  }
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        return NextResponse.json(
+            { error: "Failed to generate roster", details: errorMessage }, 
+            { status: 500 }
+        );
+    }
 }

@@ -29,6 +29,8 @@ export default function CreateRosterClient() {
   const [error, setError] = useState<string | null>(null);
   const [selectedRosterId, setSelectedRosterId] = useState<number | null>(null);
   const [viewData, setViewData] = useState<ViewData | null>(null);
+  const [generatedRoster, setGeneratedRoster] = useState<any | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   useEffect(() => {
     fetchRosters();
@@ -81,23 +83,57 @@ export default function CreateRosterClient() {
   const handleViewDetails = async (roster: RosterDetails) => {
     setLoading(true);
     setSelectedRosterId(roster.id);
-    
+    setIsGenerating(true);
+  
     try {
-      const response = await fetch(
+      // First, fetch availability data
+      const availabilityResponse = await fetch(
         `/api/roster/availability?startDate=${roster.startDate}&endDate=${roster.endDate}`
       );
-      if (!response.ok) throw new Error('Failed to fetch availability');
+      if (!availabilityResponse.ok) throw new Error('Failed to fetch availability');
       
-      const availabilityData = await response.json();
+      const availabilityData = await availabilityResponse.json();
       setViewData({
         roster: roster,
         availability: availabilityData
       });
+  
+      // Log the data being sent to generate endpoint
+      console.log('Sending to generate endpoint:', {
+        roster: roster,
+        availability: availabilityData
+      });
+  
+      // Then, generate roster using the API endpoint
+      const generateResponse = await fetch('/api/roster/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          roster: roster,
+          availability: availabilityData
+        }),
+      });
+  
+      if (!generateResponse.ok) {
+        const errorText = await generateResponse.text();
+        console.error('Generate response error:', {
+          status: generateResponse.status,
+          statusText: generateResponse.statusText,
+          body: errorText
+        });
+        throw new Error(`Failed to generate roster: ${generateResponse.status}`);
+      }
+      
+      const generatedData = await generateResponse.json();
+      setGeneratedRoster(generatedData);
     } catch (error) {
-      console.error('Error fetching availability:', error);
-      setError('Failed to fetch availability data');
+      console.error('Detailed error:', error);
+      setError('Failed to fetch or generate data');
     } finally {
       setLoading(false);
+      setIsGenerating(false);
     }
   };
 
@@ -187,11 +223,21 @@ export default function CreateRosterClient() {
                               {JSON.stringify(viewData.roster, null, 2)}
                             </pre>
                           </div>
-                          <div>
+                          <div className="mb-4">
                             <h4 className="font-medium mb-2">Availability Data:</h4>
                             <pre className="whitespace-pre-wrap overflow-x-auto">
                               {JSON.stringify(viewData.availability, null, 2)}
                             </pre>
+                          </div>
+                          <div>
+                            <h4 className="font-medium mb-2">Generated Roster:</h4>
+                            {isGenerating ? (
+                              <div className="text-center py-4">Generating roster...</div>
+                            ) : generatedRoster ? (
+                              <pre className="whitespace-pre-wrap overflow-x-auto">
+                                {JSON.stringify(generatedRoster, null, 2)}
+                              </pre>
+                            ) : null}
                           </div>
                         </div>
                       )}
