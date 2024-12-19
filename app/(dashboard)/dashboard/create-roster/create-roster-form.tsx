@@ -7,14 +7,28 @@ import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { DateRange } from "react-day-picker";
 
+interface RosterDetails {
+  id: number;
+  teamId: number;
+  startDate: string;
+  endDate: string;
+  createdBy: number;
+  createdAt: string;
+}
+
+interface ViewData {
+  roster: RosterDetails;
+  availability: any;
+}
+
 export default function CreateRosterClient() {
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
-  const [rosters, setRosters] = useState<any[]>([]);
+  const [rosters, setRosters] = useState<RosterDetails[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [selectedRosterId, setSelectedRosterId] = useState<number | null>(null);
-  const [availabilityData, setAvailabilityData] = useState<any>(null);
+  const [viewData, setViewData] = useState<ViewData | null>(null);
 
   useEffect(() => {
     fetchRosters();
@@ -64,7 +78,7 @@ export default function CreateRosterClient() {
     }
   };
 
-  const handleViewDetails = async (roster: any) => {
+  const handleViewDetails = async (roster: RosterDetails) => {
     setLoading(true);
     setSelectedRosterId(roster.id);
     
@@ -74,8 +88,11 @@ export default function CreateRosterClient() {
       );
       if (!response.ok) throw new Error('Failed to fetch availability');
       
-      const data = await response.json();
-      setAvailabilityData(data);
+      const availabilityData = await response.json();
+      setViewData({
+        roster: roster,
+        availability: availabilityData
+      });
     } catch (error) {
       console.error('Error fetching availability:', error);
       setError('Failed to fetch availability data');
@@ -162,11 +179,20 @@ export default function CreateRosterClient() {
                         </Button>
                       </div>
                       
-                      {selectedRosterId === roster.id && availabilityData && (
+                      {selectedRosterId === roster.id && viewData && (
                         <div className="ml-4 p-4 border rounded-lg bg-gray-50">
-                          <pre className="whitespace-pre-wrap overflow-x-auto">
-                            {JSON.stringify(availabilityData, null, 2)}
-                          </pre>
+                          <div className="mb-4">
+                            <h4 className="font-medium mb-2">Roster Details:</h4>
+                            <pre className="whitespace-pre-wrap overflow-x-auto">
+                              {JSON.stringify(viewData.roster, null, 2)}
+                            </pre>
+                          </div>
+                          <div>
+                            <h4 className="font-medium mb-2">Availability Data:</h4>
+                            <pre className="whitespace-pre-wrap overflow-x-auto">
+                              {JSON.stringify(viewData.availability, null, 2)}
+                            </pre>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -180,4 +206,3 @@ export default function CreateRosterClient() {
     </section>
   );
 }
-
