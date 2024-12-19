@@ -19,11 +19,16 @@ const generationConfig = {
 };
 
 // Read the .md file and store its content
-const promptFilePath = path.resolve(process.cwd(), "prompts/roster-generation.md");
+const promptFilePath = path.resolve(process.cwd(), "prompts/Roster_Generation_Prompt.md");
+console.log('Prompt file path:', promptFilePath);
+console.log('File exists:', fs.existsSync(promptFilePath));
 const basePrompt = fs.readFileSync(promptFilePath, "utf-8");
 
 export async function POST(request: Request) {
     try {
+        console.log('Request URL:', request.url);
+        console.log('Request method:', request.method);
+        console.log('Request headers:', Object.fromEntries(request.headers));
         console.log('Generate roster endpoint hit');
         
         const body = await request.json();
