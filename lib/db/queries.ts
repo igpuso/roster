@@ -255,3 +255,24 @@ export async function getAllRosters(teamId: number) {
     .where(eq(rosters.teamId, teamId))
     .orderBy(desc(rosters.createdAt));
 }
+
+export async function generateRoster(roster: any, availability: any) {
+  try {
+    const response = await fetch('/api/roster/generate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ roster, availability }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to generate roster');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error generating roster:', error);
+    throw error;
+  }
+}
