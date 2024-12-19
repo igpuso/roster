@@ -209,7 +209,7 @@ export async function getUsersWithAvailability(startDate: Date, endDate: Date) {
     .where(
       and(
         isNull(users.deletedAt),
-        eq(users.role, 'member'),
+        //eq(users.role, 'member'),
         // Filter by date range
         gte(userAvailability.date, startDate.toISOString().split('T')[0]),
         lte(userAvailability.date, endDate.toISOString().split('T')[0])
