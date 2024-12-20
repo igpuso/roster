@@ -26,9 +26,6 @@ const basePrompt = fs.readFileSync(promptFilePath, "utf-8");
 
 export async function POST(request: Request) {
     try {
-        console.log('Request URL:', request.url);
-        console.log('Request method:', request.method);
-        console.log('Request headers:', Object.fromEntries(request.headers));
         console.log('Generate roster endpoint hit');
         
         const body = await request.json();
@@ -62,8 +59,22 @@ export async function POST(request: Request) {
         const result = await chatSession.sendMessage(prompt);
         const response = await result.response.text();
         
-        console.log('Received response from Gemini');
-        return NextResponse.json(JSON.parse(response));
+        console.log('Raw response from Gemini:', response);
+
+        // Clean up the response by removing markdown formatting
+        const cleanResponse = response.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        console.log('Cleaned response:', cleanResponse);
+
+        try {
+            const parsedResponse = JSON.parse(cleanResponse);
+            return NextResponse.json(parsedResponse);
+        } catch (parseError) {
+            console.error("JSON parsing error:", parseError);
+            return NextResponse.json(
+                { error: "Invalid JSON response from AI", details: cleanResponse }, 
+                { status: 500 }
+            );
+        }
     } catch (error: unknown) {
         console.error("Detailed generate roster error:", error);
 
