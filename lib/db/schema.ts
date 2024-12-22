@@ -11,7 +11,8 @@ import {
   date,
   unique,
   numeric,
-  time
+  time,
+  decimal
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
@@ -114,7 +115,7 @@ export const shifts = pgTable('shifts', {
   date: date('date').notNull(),
   startTime: time('start_time').notNull(),
   finishTime: time('finish_time').notNull(),
-  hours: integer('hours').notNull(),
+  hours: decimal('hours', { precision: 5, scale: 2 }).notNull(),
 });
 
 // User Availability Table

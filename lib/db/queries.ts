@@ -13,6 +13,7 @@ import {
 } from './schema';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth/session';
+import { decimal } from 'drizzle-orm/mysql-core';
 
 export async function getUser() {
   const sessionCookie = (await cookies()).get('session');
@@ -275,4 +276,112 @@ export async function generateRoster(roster: any, availability: any) {
     console.error('Error generating roster:', error);
     throw error;
   }
+}
+
+
+interface ShiftInput {
+  rosterId: number;
+  userId: number;
+  shiftType: string;
+  date: string;
+  startTime: string;
+  finishTime: string;
+  hours: number;
+}
+
+export async function createBatchShifts(shiftsData: ShiftInput[]) {
+  try {
+    // Transform input data to match the schema
+    const transformedShifts = shiftsData.map(shift => ({
+      rosterId: shift.rosterId,
+      userId: shift.userId,
+      shiftType: shift.shiftType,
+      date: shift.date,
+      startTime: shift.startTime,
+      finishTime: shift.finishTime,
+      hours: shift.hours.toFixed(2), // Convert number to string with 2 decimal places
+    }));
+
+    // Perform batch insert
+    const createdShifts = await db.insert(shifts)
+      .values(transformedShifts)
+      .returning();
+
+    return {
+      success: true,
+      data: createdShifts,
+      message: `Successfully created ${createdShifts.length} shifts`
+    };
+
+  } catch (error) {
+    console.error('Error creating shifts:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error occurred',
+      message: 'Failed to create shifts'
+    };
+  }
+}
+
+// Helper function to validate shift data before insertion
+export function validateShiftData(shiftsData: ShiftInput[]) {
+  const errors: string[] = [];
+
+  for (const [index, shift] of shiftsData.entries()) {
+    // Check for required fields
+    if (!shift.rosterId || !shift.userId || !shift.shiftType || !shift.date || 
+        !shift.startTime || !shift.finishTime || shift.hours === undefined) {
+      errors.push(`Shift at index ${index} is missing required fields`);
+      continue;
+    }
+
+    // Validate date format (YYYY-MM-DD)
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(shift.date) || isNaN(Date.parse(shift.date))) {
+      errors.push(`Invalid date format for shift at index ${index}. Expected YYYY-MM-DD`);
+    }
+
+    // Validate time format (HH:mm:ss)
+    const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$/;
+    if (!timeRegex.test(shift.startTime) || !timeRegex.test(shift.finishTime)) {
+      errors.push(`Invalid time format for shift at index ${index}. Expected HH:mm:ss`);
+    }
+
+    // Validate shift type
+    const validShiftTypes = ['AM', 'PM', 'NA'];
+    if (!validShiftTypes.includes(shift.shiftType)) {
+      errors.push(`Invalid shift type "${shift.shiftType}" for shift at index ${index}`);
+    }
+
+    // Validate hours (should be positive and within reasonable range)
+    if (shift.hours <= 0 || shift.hours > 24) {
+      errors.push(`Invalid hours value for shift at index ${index}. Must be between 0 and 24`);
+    }
+
+    // Validate decimal precision of hours
+    const hoursStr = shift.hours.toString();
+    const decimalPlaces = hoursStr.includes('.') ? hoursStr.split('.')[1].length : 0;
+    if (decimalPlaces > 2) {
+      errors.push(`Hours value at index ${index} has too many decimal places. Maximum is 2 decimal places`);
+    }
+  }
+
+  return errors;
+}
+
+// Usage example:
+export async function createShiftsFromJSON(shiftsData: ShiftInput[]) {
+  // First validate the data
+  const validationErrors = validateShiftData(shiftsData);
+  
+  if (validationErrors.length > 0) {
+    return {
+      success: false,
+      errors: validationErrors,
+      message: 'Validation failed'
+    };
+  }
+
+  // If validation passes, create the shifts
+  return await createBatchShifts(shiftsData);
 }
