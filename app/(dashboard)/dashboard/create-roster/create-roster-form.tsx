@@ -128,14 +128,33 @@ export default function CreateRosterClient() {
       
       const generatedData = await generateResponse.json();
       setGeneratedRoster(generatedData);
-    } catch (error) {
-      console.error('Detailed error:', error);
-      setError('Failed to fetch or generate data');
-    } finally {
-      setLoading(false);
-      setIsGenerating(false);
+          // Add this new section to save the generated shifts
+      if (Array.isArray(generatedData)) {
+      // Save the generated shifts to the database
+      const saveResponse = await fetch('/api/roster/shifts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(generatedData)
+      });
+
+      if (!saveResponse.ok) {
+        throw new Error('Failed to save shifts');
+      }
+
+      const saveResult = await saveResponse.json();
+      console.log('Shifts saved:', saveResult);
     }
-  };
+
+  } catch (error) {
+    console.error('Detailed error:', error);
+    setError('Failed to fetch or generate data');
+  } finally {
+    setLoading(false);
+    setIsGenerating(false);
+  }
+};
 
   return (
     <section className="flex-1 p-4 lg:p-8">
