@@ -149,17 +149,25 @@ export async function createRoster(data: NewRoster) {
   return await db.insert(rosters).values(data).returning();
 }
 
-export async function getRostersByTeam(teamId: number) {
-  return await db.query.rosters.findMany({
-    where: eq(rosters.teamId, teamId),
-    with: {
-      shifts: {
-        with: {
-          user: true,
-        },
-      },
-    },
-  });
+export async function getRostersByTeam(userId: number) {
+  // First get the user's team ID from teamMembers table
+  const teamMember = await db
+    .select({
+      teamId: teamMembers.teamId
+    })
+    .from(teamMembers)
+    .where(eq(teamMembers.userId, userId))
+    .limit(1);
+
+  if (!teamMember.length) {
+    throw new Error('User is not a member of any team');
+  }
+
+  return await db
+    .select()
+    .from(rosters)
+    .where(eq(rosters.teamId, teamMember[0].teamId))
+    .orderBy(rosters.startDate);
 }
 
 export async function createShift(data: NewShift) {
@@ -384,4 +392,46 @@ export async function createShiftsFromJSON(shiftsData: ShiftInput[]) {
 
   // If validation passes, create the shifts
   return await createBatchShifts(shiftsData);
+}
+
+export async function getShiftsByTeam(rosterId: number) {
+  const user = await getUser();
+  if (!user) {
+    throw new Error('User not authenticated');
+  }
+
+  // First get the user's team ID from teamMembers table
+  const teamMember = await db
+    .select({
+      teamId: teamMembers.teamId
+    })
+    .from(teamMembers)
+    .where(eq(teamMembers.userId, user.id))
+    .limit(1);
+
+  if (!teamMember.length) {
+    throw new Error('User is not a member of any team');
+  }
+
+  return await db
+    .select({
+      id: shifts.id,
+      rosterId: shifts.rosterId,
+      userName: users.name,
+      shiftType: shifts.shiftType,
+      date: shifts.date,
+      startTime: shifts.startTime,
+      finishTime: shifts.finishTime,
+      hours: shifts.hours,
+    })
+    .from(shifts)
+    .leftJoin(users, eq(shifts.userId, users.id))
+    .leftJoin(rosters, eq(shifts.rosterId, rosters.id))
+    .where(
+      and(
+        eq(rosters.teamId, teamMember[0].teamId),
+        eq(shifts.rosterId, rosterId)
+      )
+    )
+    .orderBy(shifts.date);
 }
