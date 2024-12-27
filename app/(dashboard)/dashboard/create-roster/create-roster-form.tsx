@@ -80,81 +80,68 @@ export default function CreateRosterClient() {
     }
   };
 
-  const handleViewDetails = async (roster: RosterDetails) => {
-    setLoading(true);
-    setSelectedRosterId(roster.id);
-    setIsGenerating(true);
-  
-    try {
-      // First, fetch availability data
-      const availabilityResponse = await fetch(
-        `/api/roster/availability?startDate=${roster.startDate}&endDate=${roster.endDate}`
-      );
-      if (!availabilityResponse.ok) throw new Error('Failed to fetch availability');
-      
-      const availabilityData = await availabilityResponse.json();
-      setViewData({
+const handleViewDetails = async (roster: RosterDetails) => {
+  setLoading(true);
+  setSelectedRosterId(roster.id);
+  setIsGenerating(true);
+
+  try {
+    // First, fetch availability data
+    const availabilityResponse = await fetch(
+      `/api/roster/availability?startDate=${roster.startDate}&endDate=${roster.endDate}`
+    );
+    if (!availabilityResponse.ok) throw new Error('Failed to fetch availability');
+    
+    const availabilityData = await availabilityResponse.json();
+    setViewData({
+      roster: roster,
+      availability: availabilityData
+    });
+
+    // Generate roster using Gemini API
+    const generateResponse = await fetch('/api/roster/generate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
         roster: roster,
         availability: availabilityData
-      });
-  
-      // Log the data being sent to generate endpoint
-      console.log('Sending to generate endpoint:', {
-        roster: roster,
-        availability: availabilityData
-      });
-  
-      // Then, generate roster using the API endpoint
-      const generateResponse = await fetch('/api/roster/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          roster: roster,
-          availability: availabilityData
-        }),
-      });
-  
-      if (!generateResponse.ok) {
-        const errorText = await generateResponse.text();
-        console.error('Generate response error:', {
-          status: generateResponse.status,
-          statusText: generateResponse.statusText,
-          body: errorText
-        });
-        throw new Error(`Failed to generate roster: ${generateResponse.status}`);
-      }
-      
-      const generatedData = await generateResponse.json();
-      setGeneratedRoster(generatedData);
-          // Add this new section to save the generated shifts
-      if (Array.isArray(generatedData)) {
-      // Save the generated shifts to the database
-      const saveResponse = await fetch('/api/roster/shifts', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(generatedData)
-      });
+      }),
+    });
 
-      if (!saveResponse.ok) {
-        throw new Error('Failed to save shifts');
-      }
-
-      const saveResult = await saveResponse.json();
-      console.log('Shifts saved:', saveResult);
+    if (!generateResponse.ok) {
+      throw new Error('Failed to generate roster');
     }
 
+    const generatedData = await generateResponse.json();
+
+    // Queue the shift insertion job
+    const jobResponse = await fetch('/api/trigger/queue-shifts', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        shifts: generatedData
+      }),
+    });
+
+    if (!jobResponse.ok) {
+      throw new Error('Failed to queue shift insertion job');
+    }
+
+    setGeneratedRoster(generatedData);
+    
   } catch (error) {
-    console.error('Detailed error:', error);
-    setError('Failed to fetch or generate data');
+    console.error('Error in roster generation process:', error);
+    setError('Failed to process roster generation');
   } finally {
     setLoading(false);
     setIsGenerating(false);
   }
 };
+  
 
   return (
     <section className="flex-1 p-4 lg:p-8">
