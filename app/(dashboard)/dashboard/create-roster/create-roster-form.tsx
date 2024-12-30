@@ -80,67 +80,53 @@ export default function CreateRosterClient() {
     }
   };
 
-const handleViewDetails = async (roster: RosterDetails) => {
-  setLoading(true);
-  setSelectedRosterId(roster.id);
-  setIsGenerating(true);
-
-  try {
-    // First, fetch availability data
-    const availabilityResponse = await fetch(
-      `/api/roster/availability?startDate=${roster.startDate}&endDate=${roster.endDate}`
-    );
-    if (!availabilityResponse.ok) throw new Error('Failed to fetch availability');
-    
-    const availabilityData = await availabilityResponse.json();
-    setViewData({
-      roster: roster,
-      availability: availabilityData
-    });
-
-    // Generate roster using Gemini API
-    const generateResponse = await fetch('/api/roster/generate', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
+  const handleViewDetails = async (roster: RosterDetails) => {
+    setLoading(true);
+    setSelectedRosterId(roster.id);
+    setIsGenerating(true);
+  
+    try {
+      // First, fetch availability data
+      const availabilityResponse = await fetch(
+        `/api/roster/availability?startDate=${roster.startDate}&endDate=${roster.endDate}`
+      );
+      if (!availabilityResponse.ok) throw new Error('Failed to fetch availability');
+      
+      const availabilityData = await availabilityResponse.json();
+      setViewData({
         roster: roster,
         availability: availabilityData
-      }),
-    });
-
-    if (!generateResponse.ok) {
-      throw new Error('Failed to generate roster');
+      });
+  
+      // Trigger the roster generation task
+      const triggerResponse = await fetch('/api/trigger/roster-generation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          roster: roster,
+          availability: availabilityData
+        }),
+      });
+  
+      if (!triggerResponse.ok) {
+        throw new Error('Failed to trigger roster generation task');
+      }
+  
+      const { taskId } = await triggerResponse.json();
+      
+      // You might want to store the taskId for later reference
+      // or implement a webhook to get notified when the task completes
+      
+    } catch (error) {
+      console.error('Error in roster generation process:', error);
+      setError('Failed to process roster generation');
+    } finally {
+      setLoading(false);
+      setIsGenerating(false);
     }
-
-    const generatedData = await generateResponse.json();
-
-    // Queue the shift insertion job
-    const jobResponse = await fetch('/api/trigger/queue-shifts', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        shifts: generatedData
-      }),
-    });
-
-    if (!jobResponse.ok) {
-      throw new Error('Failed to queue shift insertion job');
-    }
-
-    setGeneratedRoster(generatedData);
-    
-  } catch (error) {
-    console.error('Error in roster generation process:', error);
-    setError('Failed to process roster generation');
-  } finally {
-    setLoading(false);
-    setIsGenerating(false);
-  }
-};
+  };
   
 
   return (

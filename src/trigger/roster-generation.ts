@@ -24,10 +24,20 @@ const generationConfig = {
 const promptFilePath = path.resolve(process.cwd(), "prompts/Roster_Generation_Prompt.md");
 const basePrompt = fs.readFileSync(promptFilePath, "utf-8");
 
+export interface RosterGenerationPayload {
+  roster: {
+    id: string;
+    startDate: string;
+    endDate: string;
+    [key: string]: any;
+  };
+  availability: any[];
+}
+
 export const generateAndInsertRosterTask = task({
   id: "generate-and-insert-roster",
   maxDuration: 300,
-  run: async (payload: { roster: any, availability: any }) => {
+  run: async (payload: RosterGenerationPayload) => {
     try {
       // Step 1: Generate roster using Gemini
       const chatSession = model.startChat({
@@ -55,10 +65,14 @@ export const generateAndInsertRosterTask = task({
       // Step 2: Insert shifts into database
       const insertResult = await createShiftsFromJSON(shifts);
 
+      if (!insertResult.success) {
+        throw new Error(`Failed to insert shifts: ${insertResult.message}`);
+      }
+
       return {
         success: true,
         generatedShifts: shifts,
-        insertResult: insertResult
+        insertResult
       };
 
     } catch (error) {
