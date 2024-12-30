@@ -7,19 +7,27 @@ export const insertShiftsJob = client.defineJob({
   name: "Insert Shifts to Database",
   version: "1.0.0",
   trigger: eventTrigger({
-    name: "insert.shifts",
+    name: "insert.shifts", // Match this with the name in queue-shifts/route.ts
   }),
   run: async (payload, io) => {
-    await io.logger.info("Starting shift insertion job", { payload });
+    await io.logger.info("Starting shift insertion job", { 
+      shiftsCount: payload.shifts?.length 
+    });
 
     try {
+      if (!payload.shifts || !Array.isArray(payload.shifts)) {
+        throw new Error('Invalid shifts data in payload');
+      }
+
       const result = await createShiftsFromJSON(payload.shifts);
       
-      await io.logger.info("Shifts inserted successfully", { result });
+      await io.logger.info("Shifts inserted successfully", { 
+        insertedShifts: result 
+      });
       
       return {
         success: true,
-        message: result.message
+        data: result
       };
     } catch (error) {
       await io.logger.error("Failed to insert shifts", { error });

@@ -297,8 +297,10 @@ interface ShiftInput {
   hours: number;
 }
 
-export async function createBatchShifts(shiftsData: ShiftInput[]) {
+async function createBatchShifts(shiftsData: ShiftInput[]) {
   try {
+    console.log('Creating batch shifts with data:', shiftsData);
+
     // Transform input data to match the schema
     const transformedShifts = shiftsData.map(shift => ({
       rosterId: shift.rosterId,
@@ -310,10 +312,14 @@ export async function createBatchShifts(shiftsData: ShiftInput[]) {
       hours: shift.hours.toFixed(2), // Convert number to string with 2 decimal places
     }));
 
+    console.log('Transformed shifts:', transformedShifts);
+
     // Perform batch insert
     const createdShifts = await db.insert(shifts)
       .values(transformedShifts)
       .returning();
+
+    console.log('Created shifts:', createdShifts);
 
     return {
       success: true,

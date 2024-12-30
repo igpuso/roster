@@ -18,11 +18,11 @@ const generationConfig = {
   responseMimeType: "text/plain",
 };
 
-// Read the .md file and store its content
 const promptFilePath = path.resolve(process.cwd(), "prompts/Roster_Generation_Prompt.md");
 console.log('Prompt file path:', promptFilePath);
 console.log('File exists:', fs.existsSync(promptFilePath));
 const basePrompt = fs.readFileSync(promptFilePath, "utf-8");
+
 
 export async function POST(request: Request) {
     try {
@@ -32,7 +32,6 @@ export async function POST(request: Request) {
         console.log('Received data:', body);
 
         if (!body.roster || !body.availability) {
-            console.error('Missing required data');
             return NextResponse.json(
                 { error: 'Missing required roster or availability data' }, 
                 { status: 400 }
@@ -44,43 +43,63 @@ export async function POST(request: Request) {
             history: [],
         });
 
-        // Combine the base prompt with the dynamic data
-        const prompt = `
-        ${basePrompt}
-        
-        Current Roster Details:
-        ${JSON.stringify(body.roster, null, 2)}
-        
-        Available Staff Data:
-        ${JSON.stringify(body.availability, null, 2)}
-        `;
-        
-        console.log('Sending prompt to Gemini');
-        const result = await chatSession.sendMessage(prompt);
-        const response = await result.response.text();
-        
-        console.log('Raw response from Gemini:', response);
+        const prompt = `${basePrompt}\n\nAvailability Data: ${JSON.stringify(body.availability, null, 2)}`;
 
-        // Clean up the response by removing markdown formatting
-        const cleanResponse = response.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-        console.log('Cleaned response:', cleanResponse);
+        const result = await chatSession.sendMessage(prompt);
+        const response = result.response;
+        const text = response.text();
+        
+        // Clean the response to get only the JSON part
+        const cleanResponse = text.replace(/```json\n|\n```/g, '').trim();
 
         try {
             const parsedResponse = JSON.parse(cleanResponse);
-            return NextResponse.json(parsedResponse);
+            
+            // Get the base URL from the incoming request
+            const protocol = request.headers.get('x-forwarded-proto') || 'http';
+            const host = request.headers.get('host');
+            const baseUrl = `${protocol}://${host}`;
+            
+            // Format shifts data with rosterId
+            const formattedShifts = parsedResponse.map((shift: any) => ({
+                ...shift,
+                rosterId: body.roster.id
+            }));
+
+            // Queue the shifts
+            const queueResponse = await fetch(`${baseUrl}/api/trigger/queue-shifts`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    roster: body.roster,
+                    availability: body.availability,
+                    generatedShifts: formattedShifts
+                })
+            });
+
+            if (!queueResponse.ok) {
+                throw new Error('Failed to queue shifts');
+            }
+
+            const queueResult = await queueResponse.json();
+            return NextResponse.json({
+                success: true,
+                shifts: formattedShifts,
+                jobId: queueResult.jobId
+            });
         } catch (parseError) {
             console.error("JSON parsing error:", parseError);
             return NextResponse.json(
-                { error: "Invalid JSON response from AI", details: cleanResponse }, 
+                { error: "Invalid JSON response from AI" }, 
                 { status: 500 }
             );
         }
-    } catch (error: unknown) {
-        console.error("Detailed generate roster error:", error);
-
-        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    } catch (error) {
+        console.error("Error generating roster:", error);
         return NextResponse.json(
-            { error: "Failed to generate roster", details: errorMessage }, 
+            { error: "Failed to generate roster" }, 
             { status: 500 }
         );
     }

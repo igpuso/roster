@@ -1,18 +1,32 @@
-// app/api/trigger/queue-shifts/route.ts
 import { NextResponse } from 'next/server';
 import { client } from '@/lib/triggers/trigger';
 
 export async function POST(request: Request) {
   try {
-    const { roster, availability } = await request.json();
-    console.log('Queue Shifts API - Received roster and availability data:', { roster, availability });
+    const { roster, availability, generatedShifts } = await request.json();
+    
+    console.log('Queue Shifts API - Received data:', { 
+      rosterId: roster?.id,
+      availabilityCount: availability?.length,
+      shiftsCount: generatedShifts?.length 
+    });
+
+    if (!generatedShifts || !Array.isArray(generatedShifts)) {
+      throw new Error('Invalid shifts data received');
+    }
+
+    // Make sure each shift has a rosterId
+    const shiftsWithRosterId = generatedShifts.map(shift => ({
+      ...shift,
+      rosterId: shift.rosterId || roster.id
+    }));
 
     // Trigger the background job
     const job = await client.sendEvent({
-      name: "generate.and.insert.roster",
+      name: "insert.shifts",
       payload: {
-        roster,
-        availability
+        rosterId: roster.id,
+        shifts: shiftsWithRosterId
       }
     });
 
