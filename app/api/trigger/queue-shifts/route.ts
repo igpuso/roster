@@ -1,16 +1,18 @@
+// app/api/trigger/queue-shifts/route.ts
 import { NextResponse } from 'next/server';
 import { client } from '@/lib/triggers/trigger';
 
 export async function POST(request: Request) {
   try {
-    const { shifts } = await request.json();
-    console.log('Queue Shifts API - Received shifts data:', shifts);
+    const { roster, availability } = await request.json();
+    console.log('Queue Shifts API - Received roster and availability data:', { roster, availability });
 
     // Trigger the background job
     const job = await client.sendEvent({
-      name: "insert.shifts",
+      name: "generate.and.insert.roster",
       payload: {
-        shifts: shifts
+        roster,
+        availability
       }
     });
 
@@ -22,9 +24,9 @@ export async function POST(request: Request) {
     });
 
   } catch (error) {
-    console.error('Error queuing shift insertion job:', error);
+    console.error('Error queuing roster generation job:', error);
     return NextResponse.json(
-      { error: 'Failed to queue shift insertion' },
+      { error: 'Failed to queue roster generation' },
       { status: 500 }
     );
   }
