@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server';
 import { startOfDay } from 'date-fns';
-import { createNewRoster } from '@/app/api/roster/createRoster';
+import { createNewRoster } from '@/lib/db/queries';
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     
-    // Validate the request body
     if (!body.startDate || !body.endDate) {
       return NextResponse.json(
         { error: 'Start date and end date are required' },
@@ -14,11 +13,9 @@ export async function POST(request: Request) {
       );
     }
 
-    // Parse the dates using startOfDay to ensure consistent time
     const startDate = startOfDay(new Date(body.startDate));
     const endDate = startOfDay(new Date(body.endDate));
 
-    // Validate dates
     if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
       return NextResponse.json(
         { error: 'Invalid date format' },
@@ -33,24 +30,15 @@ export async function POST(request: Request) {
       );
     }
 
-    // Call the server action to create the roster
-    const result = await createNewRoster({
-      startDate,
-      endDate,
-    });
-
-    if (!result.success) {
-      return NextResponse.json(
-        { error: result.error },
-        { status: 400 }
-      );
-    }
-
-    return NextResponse.json(result.data);
+    const roster = await createNewRoster({ startDate, endDate });
+    return NextResponse.json({ success: true, data: roster });
   } catch (error) {
     console.error('Error in roster creation:', error);
     return NextResponse.json(
-      { error: 'Failed to create roster' },
+      { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Failed to create roster'
+      },
       { status: 500 }
     );
   }

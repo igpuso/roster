@@ -14,6 +14,7 @@ import {
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth/session';
 import { decimal } from 'drizzle-orm/mysql-core';
+import { format } from 'date-fns';
 
 export async function getUser() {
   const sessionCookie = (await cookies()).get('session');
@@ -145,9 +146,9 @@ export async function getTeamForUser(userId: number) {
 }
 
 // Add new roster management queries
-export async function createRoster(data: NewRoster) {
-  return await db.insert(rosters).values(data).returning();
-}
+// export async function createRoster(data: NewRoster) {
+//   return await db.insert(rosters).values(data).returning();
+// }
 
 export async function getRostersByTeam(userId: number) {
   // First get the user's team ID from teamMembers table
@@ -231,7 +232,6 @@ export async function getUsersWithAvailability(startDate: Date, endDate: Date) {
 export async function createNewRoster(data: {
   startDate: Date;
   endDate: Date;
-  createdBy: number;
 }) {
   const user = await getUser();
   if (!user) {
@@ -243,47 +243,16 @@ export async function createNewRoster(data: {
     throw new Error('Team not found');
   }
 
-  // Convert Date objects to string in YYYY-MM-DD format
-  const formattedStartDate = data.startDate.toISOString().split('T')[0];
-  const formattedEndDate = data.endDate.toISOString().split('T')[0];
-
-  return await db.insert(rosters).values({
-    ...data,
-    startDate: formattedStartDate,
-    endDate: formattedEndDate,
+  const rosterData: NewRoster = {
     teamId: teamData.id,
+    startDate: data.startDate.toISOString().split('T')[0],
+    endDate: data.endDate.toISOString().split('T')[0],
+    createdBy: user.id,
     createdAt: new Date(),
-  }).returning();
-}
+  };
 
-// Also add a function to get all rosters
-export async function getAllRosters(teamId: number) {
-  return await db
-    .select()
-    .from(rosters)
-    .where(eq(rosters.teamId, teamId))
-    .orderBy(desc(rosters.createdAt));
-}
-
-export async function generateRoster(roster: any, availability: any) {
-  try {
-    const response = await fetch('/api/roster/generate', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ roster, availability }),
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to generate roster');
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error('Error generating roster:', error);
-    throw error;
-  }
+  const [newRoster] = await db.insert(rosters).values(rosterData).returning();
+  return newRoster;
 }
 
 
