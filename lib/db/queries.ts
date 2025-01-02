@@ -145,10 +145,6 @@ export async function getTeamForUser(userId: number) {
   return result?.teamMembers[0]?.team || null;
 }
 
-// Add new roster management queries
-// export async function createRoster(data: NewRoster) {
-//   return await db.insert(rosters).values(data).returning();
-// }
 
 export async function getRostersByTeam(userId: number) {
   // First get the user's team ID from teamMembers table
