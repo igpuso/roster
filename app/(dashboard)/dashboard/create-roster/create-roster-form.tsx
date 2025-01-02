@@ -6,8 +6,8 @@ import { Calendar } from "@/components/ui/calendar";
 import { useState, useEffect, useCallback } from "react";
 import { format } from "date-fns";
 import { DateRange } from "react-day-picker";
+import { Loader2 } from "lucide-react";
 
-// Type definitions
 interface RosterDetails {
   id: number;
   teamId: number;
@@ -26,7 +26,6 @@ interface ApiError {
   message: string;
 }
 
-// API functions
 const api = {
   async fetchRosters() {
     const response = await fetch('/api/roster/list');
@@ -66,19 +65,15 @@ const api = {
   },
 };
 
-export default function CreateRosterClient() {
-  // State management
+export default function CreateRosterForm() {
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [rosters, setRosters] = useState<RosterDetails[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [selectedRosterId, setSelectedRosterId] = useState<number | null>(null);
-  const [viewData, setViewData] = useState<ViewData | null>(null);
-  const [generatedRoster, setGeneratedRoster] = useState<any | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
 
-  // Fetch rosters on component mount
   useEffect(() => {
     fetchRosters();
   }, []);
@@ -90,7 +85,6 @@ export default function CreateRosterClient() {
       setError(null);
     } catch (err) {
       const error = err as ApiError;
-      console.error('Error fetching rosters:', error);
       setError(error.message || 'Failed to fetch rosters');
     }
   }, []);
@@ -127,22 +121,16 @@ export default function CreateRosterClient() {
         roster.startDate,
         roster.endDate
       );
-
-      setViewData({ roster, availability: availabilityData });
-
       const { taskId } = await api.triggerRosterGeneration(roster, availabilityData);
-      // Store taskId for future reference if needed
       console.log('Generation task initiated:', taskId);
     } catch (err) {
       const error = err as ApiError;
       setError(error.message || 'Failed to process roster generation');
     } finally {
       setLoading(false);
-      setIsGenerating(false);
     }
   };
 
-  // Render helpers
   const renderRosterDetails = (roster: RosterDetails) => (
     <div key={roster.id} className="flex flex-col space-y-4">
       <div className="flex items-center justify-between p-4 border rounded-lg">
@@ -153,36 +141,27 @@ export default function CreateRosterClient() {
         <Button
           variant="secondary"
           onClick={() => handleViewDetails(roster)}
-          disabled={loading}
+          disabled={loading && selectedRosterId === roster.id}
+          className="flex items-center gap-2"
         >
-          {loading && selectedRosterId === roster.id ? 'Loading...' : 'View Details'}
+          {loading && selectedRosterId === roster.id ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin text-orange-500" />
+              Generating
+            </>
+          ) : (
+            'View Details'
+          )}
         </Button>
       </div>
       
-      {selectedRosterId === roster.id && viewData && (
+      {selectedRosterId === roster.id && isGenerating && (
         <div className="ml-4 p-4 border rounded-lg bg-gray-50">
-          <div className="mb-4">
-            <h4 className="font-medium mb-2">Roster Details:</h4>
-            <pre className="whitespace-pre-wrap overflow-x-auto">
-              {JSON.stringify(viewData.roster, null, 2)}
-            </pre>
-          </div>
-          <div className="mb-4">
-            <h4 className="font-medium mb-2">Availability Data:</h4>
-            <pre className="whitespace-pre-wrap overflow-x-auto">
-              {JSON.stringify(viewData.availability, null, 2)}
-            </pre>
-          </div>
-          <div>
-            <h4 className="font-medium mb-2">Generated Roster:</h4>
-            {isGenerating ? (
-              <div className="text-center py-4">Generating roster...</div>
-            ) : generatedRoster ? (
-              <pre className="whitespace-pre-wrap overflow-x-auto">
-                {JSON.stringify(generatedRoster, null, 2)}
-              </pre>
-            ) : null}
-          </div>
+          <p className="text-sm text-gray-600">
+            The roster is being generated in the background. You don't need to stay on this page - 
+            the roster will be automatically available in the roster section once complete. 
+            Feel free to navigate away or close this page.
+          </p>
         </div>
       )}
     </div>
@@ -198,40 +177,33 @@ export default function CreateRosterClient() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <Button 
-              onClick={() => setShowForm(true)}
-              disabled={loading}
-              variant="outline"
-            >
-              Create New Roster
-            </Button>
-
             {error && (
-              <div className="text-red-500 text-sm mt-2">
+              <div className="text-red-500 mb-4">
                 {error}
               </div>
             )}
-
-            {showForm && (
-              <div className="mt-4 space-y-4">
+            
+            {!showForm ? (
+              <Button onClick={() => setShowForm(true)}>Create New Roster</Button>
+            ) : (
+              <div className="space-y-4">
                 <div>
-                  <label className="block mb-2">Select Date Range</label>
+                  <label className="block text-sm font-medium mb-2">
+                    Select Date Range
+                  </label>
                   <Calendar
                     mode="range"
                     selected={dateRange}
                     onSelect={setDateRange}
-                    numberOfMonths={2}
                     className="rounded-md border"
+                    numberOfMonths={2}
                   />
                 </div>
-                <div className="flex gap-2">
-                  <Button 
-                    onClick={handleCreateRoster}
-                    disabled={loading || !dateRange?.from || !dateRange?.to}
-                  >
+                <div className="flex space-x-2">
+                  <Button onClick={handleCreateRoster} disabled={loading}>
                     {loading ? 'Creating...' : 'Create Roster'}
                   </Button>
-                  <Button 
+                  <Button
                     variant="outline"
                     onClick={() => {
                       setShowForm(false);
@@ -245,11 +217,9 @@ export default function CreateRosterClient() {
             )}
 
             {rosters.length > 0 && (
-              <div className="mt-8">
-                <h3 className="text-lg font-medium mb-4">Existing Rosters</h3>
-                <div className="space-y-4">
-                  {rosters.map(renderRosterDetails)}
-                </div>
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Existing Rosters</h3>
+                {rosters.map(renderRosterDetails)}
               </div>
             )}
           </div>
